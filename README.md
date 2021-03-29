@@ -4,7 +4,7 @@ A Repository for Studying Spring Framework.
 
 # Study Schedule
 
-Study one chapter a week and organize it into md files in their respective directories.
+Study one chapter a week and organize it into md files in their respective directories.  
 Each Wednesday, one person takes turns presenting chapters of the week.
 
 # Text Book
