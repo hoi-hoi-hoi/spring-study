@@ -15,7 +15,7 @@ Each Wednesday, one person takes turns presenting chapters of the week.
 
 - donghyun ( hvho1119@gmail.com )
 - sumin ( hsue66@gmail.com )
-- jihoon
+- jihoon ( jihzang@gmail.com )
 - seoha
 - hyeji
 - sejong ( sejongchoi.400@gmail.com )
