@@ -4,7 +4,7 @@
 ## Introduction
 
 1. The 'Spring' is now regarded as the bible of web framework
-2. As the version is updated, the contents of the text changed.
+2. As the version is updated, the contents of the textbook changed.
 3. Recommend viewing the latest version.
 
 
