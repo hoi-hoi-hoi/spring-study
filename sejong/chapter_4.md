@@ -2,10 +2,13 @@
 
 ## Keyword
 - Spring Security
-- In-Memory
-- JDBC
-- LDAP
+- 사용자 인증
+    - In-Memory
+    - JDBC
+    - LDAP
+    - Customizing
 - 웹 요청 보안 처리
+- 사용자 인지
 
 ---
 
@@ -27,9 +30,8 @@
 </dependencies>
 ```
 
-### 2. Spring Security Configuration
-    - XML
-    - Java Class
+### 2. 사용자 인증
+    - XML, Java Class
 ```java
 @Configuration
 @EnableWebSecurity
@@ -47,7 +49,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
-### 3. In-Memory 사용자 스토어
+#### 2-1. In-Memory
 ```java
 ...
 @Override
@@ -57,7 +59,7 @@ public void configure(AuthenticationManagerBuilder auth) throws Exception{
 }
 ```
 
-### 4. JDBC 사용자 스토어
+#### 2-2. JDBC
 ```java
 ...
 
@@ -69,11 +71,31 @@ protected void configure(AuthenticationManagerBuilder auth) throws Exception{
     auth
         .jdbcAuthentication()
         .dataSource(dataSource);
+    // .usersByUsernameQuery(...)
+    // .authoritiesByUsernameQuery(...)
     ...
 }
 ```
+    - 내부적으로 수행되는 Query
+```java
+public static final String DEF_USERS_BY_USERNAME_QUERY = 
+    "SELECT username,password,enables " +
+    "FROM users " +
+    "WHERE username = ?";
+public static final String DEF_AUTHORITIES_BY_USERNAME_QUERY = 
+    "SELECT username,authority " +
+    "FROM authorities " +
+    "WHERE username = ?";
+public static final String DEF_GROUP_AUTHORITIES_BY_USERNAME_QUERY = 
+    "SELECT g.id, g.group_name, ga.authority " +
+    "FROM authorities g, group_members gm, group_authorities ga " +
+    "WHERE gm.username = ? " +
+    "AND g.id = ga.group_id " +
+    "AND g.id = gm.group_id";
+```
 
-### 5. LDAP 사용자 스토어
+
+#### 2-3. LDAP 
 ```java
 ...
 @Override
@@ -84,24 +106,108 @@ protected void configure(AuthenticationManagerBuilder auth) throws Exception{
 }
 ```
 
-### 6. 사용자 인증 커스터 마이징
-    - User class를 통해서 설정(UserDetails를 구현?)
+#### 2-4. Customizing
 ```java
 @Entity
 @Data
 ...
 public class User implements UserDetails {
+    @Id
+    private Long id;
+
+    private final String username;
+    private final String password;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+    ...
+}
+
+public interface UserRepository extends CrudRepository<User, Long> {
+    User findByUsername(String username);
+}
+
+public interface UserDetailsService {
+    UserDetails loadUserByUsername(String username)
+        throws UsernameNotFoundException;
+}
+
+@Service
+public class UserRepositoryUserDetailsService implements UserDetailsService {
+    private UserRepository userRepo;
+
+    @Autowired
+    public UserRepositoryUserDetailsService(UserRepository userRepo) {
+        this.userRepo = userRepo;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username)
+        throws UsernameNotFoundException {
+            User user = userRepo.findByUsername(username);
+            if (user != null) {
+                return user;
+            }
+            throw new UsernameNotFoundException("User '" + username + "' not found");
+            )
+        }
+}
+
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    ...
+    @Autowired
+    private UserDetailsService userDetailsService;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth)
+        throws Exception {
+            auth
+                .userDetailsService(userDetailsService);
+                ...
+        }
     ...
 }
 ```
 
-### 7. 웹 요청 보안 처리하기
+#### Password Encoding
+    - BCryptPasswordEncoder
+    - NoOpPasswordEncoder
+    - Pbkdf2PasswordEncoder
+    - SCryptPasswordEncoder
+    - StandardPasswordEncoder
+
+### 4. 웹 요청 보안 처리하기
     - Access 설정
 ```java
 @Override
 protected void configure(HttpSecurity http) throws Exception {
-    http.
-    ...
+    http
+        .authorizeRequests()
+        .antMatchers("/design","/orders")
+        .hasRole("ROLE_USER")
+        .antMatchers("/","/**").permitAll();
 }
 ```
     - HttpSecurity를 사용해서 구성할 수 있는 것
@@ -110,9 +216,51 @@ protected void configure(HttpSecurity http) throws Exception {
         - 사용자가 애플리케이션의 로그아웃을 할 수 있도록 한다.
         - CSRF 공격으로부터 보호하도록 구성한다.
         - p149~150 참조
+    - 스프링 표현식을 사용한 인증 규칙 정의하기
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests()
+        .antMatchers("/design","/orders")
+        .access("hasRole('ROLE_USER') && " +
+            "T(java.util.Calendar).getInstance().get("+
+            "T(java.util.Calendar).DAY_OF_WEEK) == " +
+            "T(java.util.Calendar).TUESDAY")
+        .antMatchers("/", "/**").access("permitAll");
+}
+```
+    - Custom Login page
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests()
+        ...
+        .and()
+        .formLogin()
+        .loginPage("/login")
+        .loginProcessingUrl("/authenticate")
+        .usernameParameter("user")
+        .passwordParameter("pwd")
+        .and()
+        .logout()
+        .logoutSuccessUrl("/")
+}
+```
+    - CSRF 방어하기
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .authorizeRequests()
+        ...
+        .and()
+        .csrf()
+}
+```
 
-
-### 8. 사용자 정보 얻기
+### 5. 사용자 인지
     - Principal 객체를 컨트롤러 메서드에 주입한다.
 ```java
 @PostMapping
