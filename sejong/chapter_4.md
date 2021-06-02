@@ -94,6 +94,12 @@ public static final String DEF_GROUP_AUTHORITIES_BY_USERNAME_QUERY =
     "AND g.id = gm.group_id";
 ```
 
+#### Password Encoding
+    - BCryptPasswordEncoder
+    - NoOpPasswordEncoder
+    - Pbkdf2PasswordEncoder
+    - SCryptPasswordEncoder
+    - StandardPasswordEncoder
 
 #### 2-3. LDAP 
 ```java
@@ -107,6 +113,8 @@ protected void configure(AuthenticationManagerBuilder auth) throws Exception{
 ```
 
 #### 2-4. Customizing
+    - User Class
+    - JPA
 ```java
 @Entity
 @Data
@@ -149,11 +157,6 @@ public interface UserRepository extends CrudRepository<User, Long> {
     User findByUsername(String username);
 }
 
-public interface UserDetailsService {
-    UserDetails loadUserByUsername(String username)
-        throws UsernameNotFoundException;
-}
-
 @Service
 public class UserRepositoryUserDetailsService implements UserDetailsService {
     private UserRepository userRepo;
@@ -190,13 +193,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     ...
 }
 ```
-
-#### Password Encoding
-    - BCryptPasswordEncoder
-    - NoOpPasswordEncoder
-    - Pbkdf2PasswordEncoder
-    - SCryptPasswordEncoder
-    - StandardPasswordEncoder
 
 ### 4. 웹 요청 보안 처리하기
     - Access 설정
